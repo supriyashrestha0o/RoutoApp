@@ -23,16 +23,17 @@ class PreviewSetup extends StatefulWidget {
 }
 
 class _PreviewSetupState extends State<PreviewSetup> {
+  static const genders = ['Male', 'Female', 'Other'];
+
   final form = GlobalKey<FormState>();
   late final name = TextEditingController(text: widget.profile?.name);
   late final age = TextEditingController(text: widget.profile?.age.toString());
-  late String section = (widget.profile?.section.isEmpty ?? true)
-      ? 'Section A'
-      : widget.profile!.section;
 
-  late String gender = (widget.profile?.gender.isEmpty ?? true)
-      ? 'Prefer not to say'
-      : widget.profile!.gender;
+  // No default: the user must choose a section and a gender.
+  late String? section = (widget.profile?.section.isEmpty ?? true)
+      ? null
+      : widget.profile!.section;
+  late String gender = widget.profile?.gender ?? '';
   late Uint8List? photo = widget.profile?.photo;
 
   @override
@@ -47,6 +48,7 @@ class _PreviewSetupState extends State<PreviewSetup> {
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 900,
+        imageQuality: 85,
       );
       final bytes = await file?.readAsBytes();
       if (mounted && bytes != null) setState(() => photo = bytes);
@@ -56,12 +58,17 @@ class _PreviewSetupState extends State<PreviewSetup> {
   }
 
   void save() {
-    if (!form.currentState!.validate()) return;
+    final formOk = form.currentState!.validate();
+    if (gender.isEmpty) {
+      notice(context, 'Please select your gender.');
+      return;
+    }
+    if (!formOk) return;
     final profile = widget.profile ?? StudentProfile();
     profile
       ..name = name.text.trim()
       ..age = int.parse(age.text.trim())
-      ..section = section
+      ..section = section ?? ''
       ..gender = gender
       ..photo = photo;
     if (widget.profile != null) {
@@ -71,6 +78,46 @@ class _PreviewSetupState extends State<PreviewSetup> {
     showPage(context, JourneySetup(profile: profile));
   }
 
+  Widget genderSelector() => Padding(
+    padding: const EdgeInsets.only(top: 4, bottom: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Gender',
+          style: TextStyle(color: forest, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 20,
+          children: [
+            for (final option in genders)
+              InkWell(
+                onTap: () => setState(() => gender = option),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        gender == option
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 20,
+                        color: gender == option ? teal : sand,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(option),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Screen(
     background: mint,
@@ -78,7 +125,7 @@ class _PreviewSetupState extends State<PreviewSetup> {
     children: [
       Heading(
         widget.profile == null ? 'Create Your Profile' : 'Edit Profile',
-        'Frontend preview. Profile changes last for this session.',
+        'Tell us a little about yourself.',
       ),
       Center(
         child: InkWell(
@@ -116,7 +163,9 @@ class _PreviewSetupState extends State<PreviewSetup> {
                 'Section C',
                 'Other',
               ].map(option).toList(),
-              onChanged: (value) => setState(() => section = value!),
+              validator: (value) =>
+              value == null ? 'Please choose a section' : null,
+              onChanged: (value) => setState(() => section = value),
             ),
             const SizedBox(height: 14),
             Field(
@@ -124,24 +173,9 @@ class _PreviewSetupState extends State<PreviewSetup> {
               age,
               icon: Icons.calendar_today_outlined,
               keyboard: TextInputType.number,
-              validator: (value) {
-                final number = int.tryParse(value?.trim() ?? '');
-                return number == null || number < 1 || number > 120
-                    ? 'Enter a valid age'
-                    : null;
-              },
+              validator: validAge,
             ),
-            DropdownButtonFormField<String>(
-              initialValue: gender,
-              decoration: const InputDecoration(labelText: 'Gender'),
-              items: [
-                'Male',
-                'Female',
-                'Other',
-                'Prefer not to say',
-              ].map(option).toList(),
-              onChanged: (value) => setState(() => gender = value!),
-            ),
+            genderSelector(),
           ],
         ),
       ),

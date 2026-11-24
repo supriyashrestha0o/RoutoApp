@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:routo/controllers/validators.dart';
 import 'package:routo/core/theme/app_colors.dart';
 import 'package:routo/core/utils/ui_helpers.dart';
-import 'package:routo/models/journey.dart';
-import 'package:routo/models/student_profile.dart';
 import 'package:routo/views/auth/google_preview.dart';
 import 'package:routo/views/auth/register_page.dart';
-import 'package:routo/views/dashboard/dashboard.dart';
 import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/panel.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
-
+import 'package:routo/controllers/auth_controller.dart';
+import 'package:routo/views/setup/preview_setup.dart';
+import 'package:routo/views/setup/setup_complete.dart';
+import 'package:routo/views/auth/google_loading_preview.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -74,16 +74,23 @@ class _LoginPageState extends State<LoginPage> {
               PrimaryAction('Login', () {
                 if (!form.currentState!.validate()) return;
 
-                final profile = StudentProfile()
-                  ..name = email.text.trim().split('@').first
-                  ..journey = Journey(
-                    'Kalanki',
-                    'PCPS College',
-                    DateTime.now().add(const Duration(minutes: 30)),
-                    'Everyone',
-                  );
+                final account = AuthController.login(email.text, password.text);
+                if (account == null) {
+                  notice(context, 'Incorrect email or password.');
+                  return;
+                }
 
-                showPage(context, Dashboard(profile: profile));
+                final profile = account.profile;
+                if (profile == null || profile.journey == null) {
+                  notice(context, 'Please finish setting up your profile.');
+                  showPage(context, const PreviewSetup());
+                  return;
+                }
+
+                showPage(
+                  context,
+                  GoogleLoadingPreview(next: (_) => SetupComplete(profile: profile)),
+                );
               }),
               TextButton(
                 onPressed: () =>

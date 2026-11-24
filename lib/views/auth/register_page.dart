@@ -9,6 +9,7 @@ import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/heading.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
+import 'package:routo/controllers/auth_controller.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key, this.reset = false});
@@ -51,7 +52,12 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
       PrimaryAction(widget.reset ? 'Send Reset Link' : 'Send Verification', () {
         if (!form.currentState!.validate()) return;
-        showPage(context, EmailPreview(email: email.text.trim(), reset: widget.reset));
+        final address = email.text.trim();
+        if (!widget.reset && AuthController.exists(address)) {
+          notice(context, 'An account with this email already exists. Please login.');
+          return;
+        }
+        showPage(context, EmailPreview(email: address, reset: widget.reset));
       }),
       const SizedBox(height: 28),
       Center(child: TextButton(

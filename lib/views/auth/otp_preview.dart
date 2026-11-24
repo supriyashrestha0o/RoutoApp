@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:routo/core/utils/ui_helpers.dart';
-import 'package:routo/views/setup/preview_setup.dart';
+import 'package:routo/views/auth/create_account_page.dart';
 import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/heading.dart';
 import 'package:routo/views/widgets/primary_action.dart';
@@ -35,11 +35,12 @@ class _OtpPreviewState extends State<OtpPreview> {
         child: const Text('Resend OTP'))),
     const SizedBox(height: 28),
     PrimaryAction('Continue', () {
-      if (form.currentState!.validate()) showPage(context, const PreviewSetup());
+      if (form.currentState!.validate()) {
+        showPage(context, CreateAccountPage(email: widget.email));
+      }
     }),
     Center(child: TextButton(onPressed: () {
       Navigator.of(context)..pop()..pop();
     },
         child: const Text('Change email'))),
-  ]);
-}
+  ]);}
