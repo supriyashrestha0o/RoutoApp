@@ -4,7 +4,6 @@ import 'package:routo/core/theme/app_colors.dart';
 import 'package:routo/core/utils/ui_helpers.dart';
 import 'package:routo/views/auth/login_page.dart';
 import 'package:routo/views/auth/register_page.dart';
-import 'package:routo/views/setup/preview_setup.dart';
 import 'package:routo/views/widgets/heading.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
@@ -52,10 +51,6 @@ class WelcomePage extends StatelessWidget {
               () => showPage(context, const LoginPage()),
           secondary: true,
         ),
-      ),
-      TextButton(
-        onPressed: () => showPage(context, const PreviewSetup()),
-        child: const Text('Explore frontend preview'),
       ),
     ],
   );

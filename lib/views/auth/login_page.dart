@@ -9,10 +9,13 @@ import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/panel.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
+<<<<<<< Updated upstream
 import 'package:routo/controllers/auth_controller.dart';
 import 'package:routo/views/setup/preview_setup.dart';
 import 'package:routo/views/setup/setup_complete.dart';
 import 'package:routo/views/auth/google_loading_preview.dart';
+=======
+>>>>>>> Stashed changes
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -38,10 +41,13 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) => Screen(
     background: cream,
     children: [
-      const Center(child: Text('Frontend preview · Use sample details')),
       ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: Image.asset('assets/login-route.webp', height: 282, fit: BoxFit.cover),
+        child: Image.asset(
+          'assets/login-route.webp',
+          height: 282,
+          fit: BoxFit.cover,
+        ),
       ),
       Panel(
         child: Form(

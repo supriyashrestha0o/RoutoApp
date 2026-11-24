@@ -238,7 +238,7 @@ class _DashboardState extends State<Dashboard> {
           ),
           const SizedBox(height: 4),
           Text(
-            '$role · Frontend preview',
+            '$role',
             style: const TextStyle(color: Colors.white),
           ),
         ],
