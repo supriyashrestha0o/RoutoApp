@@ -13,6 +13,7 @@ import 'package:routo/views/widgets/panel.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/profile_avatar.dart';
 import 'package:routo/views/widgets/screen.dart';
+import 'package:routo/core/ride_notifications.dart';
 
 class TripDetails extends StatefulWidget {
   const TripDetails({
@@ -71,6 +72,7 @@ class _TripDetailsState extends State<TripDetails> {
       TripStatus.pending,
       'Preview request to join ${trip.host} sent.',
     );
+    await RideNotifications.showRequestSent();
   }
   Future<void> previewDriverDecision() async {
     if (trip.status != TripStatus.pending || !isOpen) return;
@@ -167,7 +169,7 @@ class _TripDetailsState extends State<TripDetails> {
     );
   }
 
-  void acceptPassenger() {
+  Future<void> acceptPassenger() async {
     if (!canAct || !widget.profile.driver || !trip.freeRequest) return;
 
     final request = widget.trip;
@@ -205,6 +207,7 @@ class _TripDetailsState extends State<TripDetails> {
       });
 
       widget.onUpdate('${request.host} joined your car ride.');
+      await RideNotifications.showUpdate('Request accepted', '${request.host} joined your car ride.');
       return;
     }
 
@@ -214,6 +217,7 @@ class _TripDetailsState extends State<TripDetails> {
       TripStatus.accepted,
       'You accepted ${request.host}’s preview ride request.',
     );
+    await RideNotifications.showUpdate('Request accepted', 'You accepted ${request.host}’s ride request.');
   }
 
   Future<void> report() async {
@@ -284,9 +288,10 @@ class _TripDetailsState extends State<TripDetails> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            if (!trip.freeRequest ||
-                trip.status == TripStatus.accepted ||
-                trip.status == TripStatus.completed)
+            if (!widget.profile.driver &&
+                (!trip.freeRequest ||
+                    trip.status == TripStatus.accepted ||
+                    trip.status == TripStatus.completed))
               Text('${trip.seats} passenger seats available'),
             Text(
               trip.members.isEmpty
@@ -310,10 +315,11 @@ class _TripDetailsState extends State<TripDetails> {
         PrimaryAction('Accept', acceptPassenger),
         PrimaryAction(
           'Reject',
-              () => changeStatus(
-            TripStatus.declined,
-            'You declined ${trip.host}’s preview request.',
-          ),
+              () async {
+            final host = trip.host;
+            changeStatus(TripStatus.declined, 'You declined $host’s preview request.');
+            await RideNotifications.showUpdate('Request declined', 'You declined $host’s ride request.');
+          },
           secondary: true,
         ),
       ],
@@ -330,17 +336,19 @@ class _TripDetailsState extends State<TripDetails> {
                   'Accept',
                   trip.seats == 0
                       ? null
-                      : () {
+                      : () async {
                     if (!trip.acceptMember(name)) return;
                     changeStatus(
                       TripStatus.accepted,
                       'You accepted $name.',
                     );
+                    await RideNotifications.showUpdate('Request accepted', 'You accepted $name.');
                   },
                 ),
-                PrimaryAction('Reject', () {
+                PrimaryAction('Reject', () async {
                   setState(() => trip.pendingMembers.remove(name));
                   widget.onUpdate('You declined $name.');
+                  await RideNotifications.showUpdate('Request declined', 'You declined $name.');
                 }, secondary: true),
               ],
             ),
@@ -372,12 +380,6 @@ class _TripDetailsState extends State<TripDetails> {
         const Panel(
           child: Text('Your request is pending driver approval.'),
         ),
-        if (!widget.profile.driver && !trip.mine && !trip.freeRequest && isOpen)
-          PrimaryAction(
-            'Preview driver response',
-            previewDriverDecision,
-            secondary: true,
-          ),
       ],
 
       if (trip.status == TripStatus.declined)

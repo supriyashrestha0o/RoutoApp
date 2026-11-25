@@ -38,10 +38,13 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) => Screen(
     background: cream,
     children: [
-      const Center(child: Text('Frontend preview · Use sample details')),
       ClipRRect(
         borderRadius: BorderRadius.circular(22),
-        child: Image.asset('assets/login-route.webp', height: 282, fit: BoxFit.cover),
+        child: Image.asset(
+          'assets/login-route.webp',
+          height: 282,
+          fit: BoxFit.cover,
+        ),
       ),
       Panel(
         child: Form(

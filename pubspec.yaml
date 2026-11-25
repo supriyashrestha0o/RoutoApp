@@ -3,7 +3,7 @@ description: Routo student ride-sharing frontend.
 publish_to: none
 version: 1.0.0+1
 environment:
-  sdk: ^3.13.2
+  sdk: ^3.13.3
 dependencies:
   flutter:
     sdk: flutter
@@ -12,6 +12,7 @@ dependencies:
   geocoding: 4.0.0
   google_sign_in: ^7.2.0
   flutter_svg: ^2.5.0
+  flutter_local_notifications: 23.0.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
