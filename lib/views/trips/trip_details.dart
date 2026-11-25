@@ -26,6 +26,7 @@ class TripDetails extends StatefulWidget {
     required this.onUpdate,
     required this.onBlock,
   });
+
   final PreviewTrip trip;
   final PreviewTrip? postedCar;
   final StudentProfile profile;
@@ -39,15 +40,42 @@ class TripDetails extends StatefulWidget {
   State<TripDetails> createState() => _TripDetailsState();
 }
 
+// The trip stores each top-level comment's text in trip.comments.
+// Keep its display details with the same trip for this frontend session.
+class _CommentDetails {
+  _CommentDetails({this.author});
+
+  final String? author;
+  final List<_CommentReply> replies = [];
+  final Set<StudentProfile> likedBy = Set<StudentProfile>.identity();
+  final Set<StudentProfile> hiddenBy = Set<StudentProfile>.identity();
+}
+
+class _CommentReply {
+  const _CommentReply(this.author, this.text);
+
+  final String author;
+  final String text;
+}
+
 class _TripDetailsState extends State<TripDetails> {
+  static final _detailsByTrip = Expando<Map<int, _CommentDetails>>();
+
   PreviewTrip get trip => widget.trip.acceptedCarRide ?? widget.trip;
   bool get isOpen => trip.journey.departure.isAfter(DateTime.now());
+
   bool get canAct =>
       isOpen &&
           !trip.mine &&
           trip.status == TripStatus.available &&
           trip.seats > 0;
+
   final comment = TextEditingController();
+  final _composerKey = GlobalKey();
+  int? _replyingTo;
+
+  Map<int, _CommentDetails> get _commentDetails =>
+      _detailsByTrip[trip] ??= <int, _CommentDetails>{};
 
   @override
   void dispose() {
@@ -62,10 +90,12 @@ class _TripDetailsState extends State<TripDetails> {
 
   Future<void> request() async {
     if (!canAct || widget.profile.driver || trip.freeRequest) return;
+
     final amount = await widget.fareChoice(
       offering: false,
       suggested: trip.fare,
     );
+
     if (!mounted || amount == null || !canAct) return;
     trip.contribution = amount;
     changeStatus(
@@ -74,6 +104,7 @@ class _TripDetailsState extends State<TripDetails> {
     );
     await RideNotifications.showRequestSent();
   }
+
   Future<void> previewDriverDecision() async {
     if (trip.status != TripStatus.pending || !isOpen) return;
 
@@ -157,7 +188,6 @@ class _TripDetailsState extends State<TripDetails> {
       return;
     }
 
-    // The existing model adds the passenger and counts the occupied seat.
     if (!trip.join(passenger)) {
       notice(context, 'This passenger could not be added to the ride.');
       return;
@@ -207,7 +237,10 @@ class _TripDetailsState extends State<TripDetails> {
       });
 
       widget.onUpdate('${request.host} joined your car ride.');
-      await RideNotifications.showUpdate('Request accepted', '${request.host} joined your car ride.');
+      await RideNotifications.showUpdate(
+        'Request accepted',
+        '${request.host} joined your car ride.',
+      );
       return;
     }
 
@@ -217,18 +250,250 @@ class _TripDetailsState extends State<TripDetails> {
       TripStatus.accepted,
       'You accepted ${request.host}’s preview ride request.',
     );
-    await RideNotifications.showUpdate('Request accepted', 'You accepted ${request.host}’s ride request.');
+    await RideNotifications.showUpdate(
+      'Request accepted',
+      'You accepted ${request.host}’s ride request.',
+    );
   }
 
   Future<void> report() async {
     final result = await showPage<String>(context, ReportPage(name: trip.host));
     if (!mounted || result == null) return;
+
     if (result == 'block') {
       widget.onBlock(trip.host);
       Navigator.of(context).pop();
     } else {
       notice(context, 'Report recorded for this preview session.');
     }
+  }
+
+  Future<void> _openReview() async {
+    final author = widget.profile.name.trim();
+    if (author.isEmpty) {
+      notice(context, 'Add your name to your profile first.');
+      return;
+    }
+
+    final details = _commentDetails;
+    await showPage(
+      context,
+      ReviewPage(
+        trip: trip,
+        onCommentPosted: (index) {
+          details[index] = _CommentDetails(author: author);
+        },
+      ),
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  void _postComment() {
+    final text = comment.text.trim();
+    if (text.isEmpty) return;
+
+    final author = widget.profile.name.trim();
+    if (author.isEmpty) {
+      notice(context, 'Add your name to your profile first.');
+      return;
+    }
+
+    final replyIndex = _replyingTo;
+
+    setState(() {
+      if (replyIndex == null) {
+        final index = trip.comments.length;
+        trip.comments.add(text);
+        _commentDetails[index] = _CommentDetails(author: author);
+      } else {
+        _commentDetails[replyIndex]!.replies.add(_CommentReply(author, text));
+      }
+
+      _replyingTo = null;
+      comment.clear();
+    });
+
+    FocusScope.of(context).unfocus();
+  }
+
+  void _startReply(int index) {
+    setState(() => _replyingTo = index);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      final composer = _composerKey.currentContext;
+      if (composer != null) {
+        Scrollable.ensureVisible(
+          composer,
+          duration: const Duration(milliseconds: 200),
+        );
+      }
+    });
+  }
+
+  Widget _commentAvatar(String? name, {double radius = 18}) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: mint,
+      child: name == null || name.isEmpty
+          ? Icon(Icons.person_outline, color: forest, size: radius)
+          : Text(
+        name.characters.first.toUpperCase(),
+        style: TextStyle(
+          fontSize: radius,
+          color: forest,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComment(int index) {
+    final details = _commentDetails.putIfAbsent(index, () => _CommentDetails());
+    final viewer = widget.profile;
+    final hidden = details.hiddenBy.contains(viewer);
+    final liked = details.likedBy.contains(viewer);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _commentAvatar(details.author),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (details.author != null)
+                  Text(
+                    details.author!,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                const SizedBox(height: 3),
+                Text(hidden ? 'Comment hidden' : trip.comments[index]),
+                Wrap(
+                  children: [
+                    if (!hidden)
+                      TextButton(
+                        onPressed: () => _startReply(index),
+                        child: const Text('Reply'),
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          if (hidden) {
+                            details.hiddenBy.remove(viewer);
+                          } else {
+                            details.hiddenBy.add(viewer);
+                            if (_replyingTo == index) _replyingTo = null;
+                          }
+                        });
+                      },
+                      child: Text(hidden ? 'Show' : 'Hide'),
+                    ),
+                  ],
+                ),
+                if (!hidden)
+                  for (final reply in details.replies)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _commentAvatar(reply.author, radius: 13),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  reply.author,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(reply.text),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+              ],
+            ),
+          ),
+          if (!hidden)
+            IconButton(
+              tooltip: liked ? 'Remove like' : 'Like comment',
+              icon: Icon(
+                liked ? Icons.favorite : Icons.favorite_border,
+                color: liked ? teal : Colors.black54,
+                size: 21,
+              ),
+              onPressed: () {
+                setState(() {
+                  if (liked) {
+                    details.likedBy.remove(viewer);
+                  } else {
+                    details.likedBy.add(viewer);
+                  }
+                });
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComments() {
+    final replyIndex = _replyingTo;
+    final replyAuthor =
+    replyIndex == null ? null : _commentDetails[replyIndex]?.author;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Heading('Comments'),
+        const SizedBox(height: 8),
+        for (var i = 0; i < trip.comments.length; i++) _buildComment(i),
+        Column(
+          key: _composerKey,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (replyIndex != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      replyAuthor == null
+                          ? 'Replying to this comment'
+                          : 'Replying to $replyAuthor',
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _replyingTo = null),
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              ),
+            Field(
+              replyIndex == null ? 'Write a comment' : 'Write a reply',
+              comment,
+              lines: 2,
+            ),
+            const SizedBox(height: 12),
+            PrimaryAction(
+              replyIndex == null ? 'Post Comment' : 'Post Reply',
+              _postComment,
+              secondary: true,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -317,13 +582,22 @@ class _TripDetailsState extends State<TripDetails> {
           'Reject',
               () async {
             final host = trip.host;
-            changeStatus(TripStatus.declined, 'You declined $host’s preview request.');
-            await RideNotifications.showUpdate('Request declined', 'You declined $host’s ride request.');
+            changeStatus(
+              TripStatus.declined,
+              'You declined $host’s preview request.',
+            );
+            await RideNotifications.showUpdate(
+              'Request declined',
+              'You declined $host’s ride request.',
+            );
           },
           secondary: true,
         ),
       ],
-      if (widget.profile.driver && trip.mine && isOpen) ...[
+      if (widget.profile.driver &&
+          trip.mine &&
+          isOpen &&
+          trip.status != TripStatus.completed) ...[
         const Heading('Incoming Requests'),
         if (trip.pendingMembers.isEmpty) const Text('No pending requests.'),
         for (final name in trip.pendingMembers)
@@ -342,14 +616,24 @@ class _TripDetailsState extends State<TripDetails> {
                       TripStatus.accepted,
                       'You accepted $name.',
                     );
-                    await RideNotifications.showUpdate('Request accepted', 'You accepted $name.');
+                    await RideNotifications.showUpdate(
+                      'Request accepted',
+                      'You accepted $name.',
+                    );
                   },
                 ),
-                PrimaryAction('Reject', () async {
-                  setState(() => trip.pendingMembers.remove(name));
-                  widget.onUpdate('You declined $name.');
-                  await RideNotifications.showUpdate('Request declined', 'You declined $name.');
-                }, secondary: true),
+                PrimaryAction(
+                  'Reject',
+                      () async {
+                    setState(() => trip.pendingMembers.remove(name));
+                    widget.onUpdate('You declined $name.');
+                    await RideNotifications.showUpdate(
+                      'Request declined',
+                      'You declined $name.',
+                    );
+                  },
+                  secondary: true,
+                ),
               ],
             ),
           ),
@@ -358,7 +642,8 @@ class _TripDetailsState extends State<TripDetails> {
           trip.seats == 0
               ? null
               : () {
-            final name = ['Erick', 'Evaa', 'Sunita', 'Alex'].firstWhere(
+            final name =
+            ['Erick', 'Evaa', 'Sunita', 'Alex'].firstWhere(
                   (name) =>
               !trip.members.contains(name) &&
                   !trip.pendingMembers.contains(name) &&
@@ -381,7 +666,6 @@ class _TripDetailsState extends State<TripDetails> {
           child: Text('Your request is pending driver approval.'),
         ),
       ],
-
       if (trip.status == TripStatus.declined)
         Panel(
           border: sand,
@@ -408,29 +692,15 @@ class _TripDetailsState extends State<TripDetails> {
               TripStatus.completed,
               'Your preview ride was completed.',
             ),
-            secondary: true,
           ),
       ],
-      if (trip.status == TripStatus.completed && !trip.mine) ...[
+      if (trip.status == TripStatus.completed) ...[
         PrimaryAction(
           trip.stars == null ? 'Rate Your Ride' : 'Edit Review',
-              () async {
-            await showPage(context, ReviewPage(trip: trip));
-            if (mounted) setState(() {});
-          },
+          _openReview,
         ),
         const SizedBox(height: 20),
-        const Heading('Comments'),
-        for (final text in trip.comments) ListTile(title: Text(text)),
-        Field('Write a comment', comment, lines: 2),
-        PrimaryAction('Post Comment', () {
-          final text = comment.text.trim();
-          if (text.isEmpty) return;
-          setState(() {
-            trip.comments.add(text);
-            comment.clear();
-          });
-        }, secondary: true),
+        _buildComments(),
       ],
       if (!trip.mine)
         TextButton(

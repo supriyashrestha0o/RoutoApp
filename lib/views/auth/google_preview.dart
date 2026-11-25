@@ -28,7 +28,7 @@ const _accounts = [
     Color(0xff1565c0),
   ),
   GoogleAccount(
-    'Armita Thapa Magar',
+    'Armita Thapa',
     'armita.magar@patancollege.edu.np',
     Color(0xff7e57c2),
   ),

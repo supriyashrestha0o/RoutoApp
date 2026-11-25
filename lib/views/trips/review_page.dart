@@ -9,8 +9,14 @@ import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
 
 class ReviewPage extends StatefulWidget {
-  const ReviewPage({super.key, required this.trip});
+  const ReviewPage({
+    super.key,
+    required this.trip,
+    this.onCommentPosted,
+  });
+
   final PreviewTrip trip;
+  final ValueChanged<int>? onCommentPosted;
 
   @override
   State<ReviewPage> createState() => _ReviewPageState();
@@ -43,7 +49,11 @@ class _ReviewPageState extends State<ReviewPage> {
         ),
         PrimaryAction('Done', () => Navigator.of(context).pop()),
       ] else ...[
-        Heading('How was your ride with ${widget.trip.host}?'),
+        Heading(
+          widget.trip.mine
+              ? 'How was your ride?'
+              : 'How was your ride with ${widget.trip.host}?',
+        ),
         Wrap(
           children: [
             for (var value = 1; value <= 5; value++)
@@ -65,12 +75,17 @@ class _ReviewPageState extends State<ReviewPage> {
             notice(context, 'Select a star rating.');
             return;
           }
-          setState(() {
-            widget.trip.stars = stars;
-            if (comment.text.trim().isNotEmpty)
-              widget.trip.comments.add(comment.text.trim());
-            submitted = true;
-          });
+
+          widget.trip.stars = stars;
+
+          final text = comment.text.trim();
+          if (text.isNotEmpty) {
+            final index = widget.trip.comments.length;
+            widget.trip.comments.add(text);
+            widget.onCommentPosted?.call(index);
+          }
+
+          setState(() => submitted = true);
         }),
       ],
     ],
