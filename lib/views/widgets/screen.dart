@@ -13,6 +13,7 @@ class Screen extends StatelessWidget {
     this.actions,
     this.headerColor,
     this.drawer,
+    this.leading,
   });
   final List<Widget> children;
   final String? title;
@@ -22,12 +23,14 @@ class Screen extends StatelessWidget {
   final List<Widget>? actions;
   final Color? headerColor;
   final Widget? drawer;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: background,
     drawer: drawer,
     appBar: AppBar(
+      leading: leading,
       backgroundColor: headerColor,
       foregroundColor: headerColor == null ? null : Colors.white,
       title: title == null ? null : Text(title!, style: TextStyle(
