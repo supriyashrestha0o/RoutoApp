@@ -9,13 +9,10 @@ import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/panel.dart';
 import 'package:routo/views/widgets/primary_action.dart';
 import 'package:routo/views/widgets/screen.dart';
-<<<<<<< Updated upstream
 import 'package:routo/controllers/auth_controller.dart';
 import 'package:routo/views/setup/preview_setup.dart';
 import 'package:routo/views/setup/setup_complete.dart';
 import 'package:routo/views/auth/google_loading_preview.dart';
-=======
->>>>>>> Stashed changes
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});

@@ -5,6 +5,7 @@ import 'package:routo/models/preview_trip.dart';
 import 'package:routo/views/widgets/field.dart';
 import 'package:routo/views/widgets/panel.dart';
 import 'package:routo/views/widgets/screen.dart';
+import 'package:routo/core/ride_notifications.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key, required this.trip, this.onUpdate});
@@ -93,6 +94,16 @@ class _ChatPageState extends State<ChatPage> {
           icon: const Icon(Icons.send_outlined),
         ),
       ),
+      if (const bool.fromEnvironment('TEST_MESSAGE_POPUP'))
+        TextButton(
+          onPressed: () async {
+            await RideNotifications.showUpdate(
+              'New message from Sunita',
+              'I’m at the pickup point.',
+            );
+          },
+          child: const Text('Test incoming message'),
+        ),
     ],
   );
 }
