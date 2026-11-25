@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "721577152201",
+    "firebase_url": "https://routo-77781-default-rtdb.firebaseio.com",
+    "project_id": "routo-77781",
+    "storage_bucket": "routo-77781.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:721577152201:android:176b03220a7a73bc768718",
+        "android_client_info": {
+          "package_name": "com.routo.frontendtest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD09Q2KHx6sDCGFylZEhRn_hz7EDadWVAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
