@@ -591,7 +591,24 @@ class _DashboardState extends State<Dashboard> {
   );
 
   @override
-  Widget build(BuildContext context) => Screen(
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: tab == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && tab != 0) {
+          _goHome();
+        }
+      },
+      child: _buildDashboard(context),
+    );
+  }
+
+  void _goHome() {
+    setState(() => tab = 0);
+  }
+
+  Widget _buildDashboard(BuildContext context) => Screen(
+    leading: tab == 0 ? null : BackButton(onPressed: _goHome),
     title: ['яouto', 'Matches', 'Messages', 'Me'][tab],
     background: [mint, Colors.white, cream, lilac][tab],
     headerColor: tab == 0 ? teal : null,
