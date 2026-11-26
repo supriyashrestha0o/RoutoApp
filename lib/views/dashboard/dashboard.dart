@@ -39,6 +39,12 @@ class _DashboardState extends State<Dashboard> {
   Journey get journey => profile.journey!;
   String get role => profile.driver ? 'Driver' : 'Passenger';
 
+  @override
+  void dispose() {
+    ChatAlerts.stop();
+    super.dispose();
+  }
+
   List<PreviewTrip> get matches {
     final now = DateTime.now();
     final result = trips
@@ -592,6 +598,17 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // Real-time chat popups: safe to call on every rebuild.
+    ChatAlerts.watch(
+      trips,
+      blocked: blocked,
+      onChange: (note) {
+        if (!mounted) return;
+        setState(() {
+          if (note != null) notifications.insert(0, note);
+        });
+      },
+    );
     return PopScope(
       canPop: tab == 0,
       onPopInvokedWithResult: (didPop, result) {
