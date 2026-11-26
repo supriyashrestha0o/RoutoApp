@@ -391,7 +391,10 @@ class _DashboardState extends State<Dashboard> {
               : trip.messages.last,
         ),
         onTap: () async {
-          await showPage(context, ChatPage(trip: trip));
+          await showPage(
+            context,
+            ChatPage(trip: trip, senderName: profile.name),
+          );
           if (mounted) setState(() {});
         },
       ),

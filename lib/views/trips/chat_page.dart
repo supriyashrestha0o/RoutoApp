@@ -289,6 +289,15 @@ class _ChatPageState extends State<ChatPage> {
     if (mounted) setState(() => messages = latestFirst);
   }
 
+  /// One-to-one chats show the other person's name; a group (more than one
+  /// passenger) shows "Journey Chat".
+  String get title {
+    final trip = widget.trip;
+    if (trip.members.length > 1) return 'Journey Chat';
+    if (!trip.mine) return trip.host;
+    return trip.members.isEmpty ? 'Journey Chat' : trip.members.first;
+  }
+
   String get senderName =>
       widget.senderName ??
           (widget.trip.mine
@@ -498,7 +507,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: mint,
     appBar: AppBar(
-      title: Text(widget.trip.capacity > 1 ? 'Journey Chat' : widget.trip.host),
+      title: Text(title),
     ),
     body: SafeArea(
       top: false,

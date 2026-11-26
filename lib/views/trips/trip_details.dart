@@ -61,6 +61,9 @@ class _CommentReply {
 class _TripDetailsState extends State<TripDetails> {
   static final _detailsByTrip = Expando<Map<int, _CommentDetails>>();
 
+  /// Preview only: how long the pretend driver takes to accept a request.
+  static const _driverReplyDelay = Duration(seconds: 5);
+
   PreviewTrip get trip => widget.trip.acceptedCarRide ?? widget.trip;
   bool get isOpen => trip.journey.departure.isAfter(DateTime.now());
 
@@ -102,7 +105,35 @@ class _TripDetailsState extends State<TripDetails> {
       TripStatus.pending,
       'Preview request to join ${trip.host} sent.',
     );
+    _simulateDriverAccepting(trip);
     await RideNotifications.showRequestSent();
+  }
+
+  /// Preview only: there is no real driver yet, so after a short wait the
+  /// request is accepted automatically. It keeps working even if the
+  /// passenger leaves this page while waiting.
+  Future<void> _simulateDriverAccepting(PreviewTrip requested) async {
+    final onUpdate = widget.onUpdate;
+    final name = widget.profile.name.trim();
+    await Future<void>.delayed(_driverReplyDelay);
+    if (requested.status != TripStatus.pending) return;
+
+    if (!requested.join(name.isEmpty ? 'Passenger' : name)) {
+      requested.status = TripStatus.declined;
+      if (mounted) setState(() {});
+      onUpdate('${requested.host} could not accept your request.');
+      return;
+    }
+
+    requested.status = TripStatus.accepted;
+    if (mounted) setState(() {}); // shows "You're Connected!" + Open Chat
+    onUpdate(
+      '${requested.host} accepted your request. Your journey chat is ready.',
+    );
+    await RideNotifications.showUpdate(
+      'Request accepted',
+      '${requested.host} accepted your request. Open the chat to say hi.',
+    );
   }
 
   Future<void> previewDriverDecision() async {
@@ -663,7 +694,7 @@ class _TripDetailsState extends State<TripDetails> {
       ],
       if (trip.status == TripStatus.pending) ...[
         const Panel(
-          child: Text('Your request is pending driver approval.'),
+          child: Text('Your request is pending driver approval…'),
         ),
       ],
       if (trip.status == TripStatus.declined)
@@ -682,7 +713,11 @@ class _TripDetailsState extends State<TripDetails> {
           'Open Chat',
               () => showPage(
             context,
-            ChatPage(trip: trip, onUpdate: widget.onUpdate),
+            ChatPage(
+              trip: trip,
+              onUpdate: widget.onUpdate,
+              senderName: widget.profile.name,
+            ),
           ),
         ),
         if (widget.profile.driver)
