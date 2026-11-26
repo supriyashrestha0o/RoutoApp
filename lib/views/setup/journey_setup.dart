@@ -43,6 +43,12 @@ class _JourneySetupState extends State<JourneySetup> {
   bool locating = false;
   int pickupRevision = 0;
 
+  DateTime get departure =>
+      DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+  /// True when the chosen date and time are not in the future.
+  bool get departurePassed => !departure.isAfter(DateTime.now());
+
   @override
   void initState() {
     super.initState();
@@ -129,15 +135,8 @@ class _JourneySetupState extends State<JourneySetup> {
 
   void save() {
     if (!form.currentState!.validate()) return;
-    final departure = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-    if (!departure.isAfter(DateTime.now())) {
-      notice(context, 'Choose a departure in the future.');
+    if (departurePassed) {
+      notice(context, 'Choose a departure time that has not passed yet.');
       return;
     }
     if (pickup.text.trim().toLowerCase() ==
@@ -215,20 +214,40 @@ class _JourneySetupState extends State<JourneySetup> {
                   lastDate: today.add(const Duration(days: 365)),
                   initialDate: date.isBefore(today) ? today : date,
                 );
-                if (mounted && result != null) setState(() => date = result);
+                if (!mounted || result == null) return;
+                setState(() => date = result);
+                if (departurePassed) {
+                  notice(context, 'That time has already passed. Pick a later time.');
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.schedule),
+              leading: Icon(
+                Icons.schedule,
+                color: departurePassed
+                    ? Theme.of(context).colorScheme.error
+                    : null,
+              ),
               title: const Text('Departure Time'),
-              subtitle: Text(time.format(context)),
+              subtitle: Text(
+                departurePassed
+                    ? '${time.format(context)} - already passed'
+                    : time.format(context),
+                style: departurePassed
+                    ? TextStyle(color: Theme.of(context).colorScheme.error)
+                    : null,
+              ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () async {
                 final result = await showTimePicker(
                   context: context,
                   initialTime: time,
                 );
-                if (mounted && result != null) setState(() => time = result);
+                if (!mounted || result == null) return;
+                setState(() => time = result);
+                if (departurePassed) {
+                  notice(context, 'That time has already passed. Pick a later time.');
+                }
               },
             ),
             const SizedBox(height: 12),

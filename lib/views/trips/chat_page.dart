@@ -89,6 +89,121 @@ class _ChatBackend {
           .collection('messages');
 }
 
+class _RoomWatch {
+  _RoomWatch(this.trip);
+  PreviewTrip trip;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? subscription;
+  String? lastId;
+  bool ready = false;
+}
+
+/// Pops up a notification when a new message arrives in any accepted chat,
+/// even when that chat is not open. The dashboard starts it with [watch] and
+/// ends it with [stop]. Works while the app is open or still alive in the
+/// background; a closed app needs push notifications (FCM) instead.
+class ChatAlerts {
+  ChatAlerts._();
+
+  /// Room of the chat page that is on screen right now (no popup needed).
+  static String? openRoom;
+
+  static final _rooms = <String, _RoomWatch>{};
+  static void Function(String? notification)? _onChange;
+
+  /// Safe to call on every rebuild: only new rooms start listening.
+  static void watch(
+      Iterable<PreviewTrip> trips, {
+        Set<String> blocked = const {},
+        void Function(String? notification)? onChange,
+      }) {
+    _onChange = onChange;
+    final wanted = <String, PreviewTrip>{};
+    for (final trip in trips) {
+      final hasChat =
+          trip.acceptedCarRide == null &&
+              !blocked.contains(trip.host) &&
+              (trip.status == TripStatus.accepted ||
+                  trip.status == TripStatus.completed);
+      if (hasChat) wanted[_ChatBackend.roomId(trip)] = trip;
+    }
+    for (final room in _rooms.keys.toList()) {
+      if (!wanted.containsKey(room)) {
+        _rooms.remove(room)?.subscription?.cancel();
+      }
+    }
+    wanted.forEach((room, trip) {
+      final existing = _rooms[room];
+      if (existing != null) {
+        existing.trip = trip;
+        return;
+      }
+      final watch = _rooms[room] = _RoomWatch(trip);
+      _start(room, watch);
+    });
+  }
+
+  static Future<void> _start(String room, _RoomWatch watch) async {
+    try {
+      final user = await _ChatBackend.signIn();
+      if (_rooms[room] != watch) return; // stopped or no longer wanted
+      watch.subscription = _ChatBackend.messages(room)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .snapshots()
+          .listen(
+            (snapshot) => _onSnapshot(room, watch, user.uid, snapshot),
+        onError: (Object e) => debugPrint('Chat alerts: $e'),
+      );
+    } catch (e) {
+      // Retried automatically the next time the dashboard rebuilds.
+      if (_rooms[room] == watch) _rooms.remove(room);
+      debugPrint('Chat alerts could not start: $e');
+    }
+  }
+
+  static void _onSnapshot(
+      String room,
+      _RoomWatch watch,
+      String uid,
+      QuerySnapshot<Map<String, dynamic>> snapshot,
+      ) {
+    if (snapshot.docs.isEmpty) {
+      watch.ready = true;
+      return;
+    }
+    final doc = snapshot.docs.first;
+    if (doc.id == watch.lastId) return; // nothing new
+    final message = _Message.fromDoc(doc);
+    final firstLook = !watch.ready;
+    watch.ready = true;
+    watch.lastId = doc.id;
+
+    final chatIsOpen = openRoom == room;
+    // Keeps the dashboard's Messages tab preview up to date.
+    if (!chatIsOpen) {
+      watch.trip.messages
+        ..clear()
+        ..add(message.text);
+    }
+    // Never pop up for old messages, my own, or the chat I'm looking at.
+    final incoming = !firstLook && message.senderId != uid && !chatIsOpen;
+    if (incoming) {
+      unawaited(RideNotifications.showUpdate(message.senderName, message.text));
+    }
+    _onChange?.call(
+      incoming ? 'Message from ${message.senderName}: ${message.text}' : null,
+    );
+  }
+
+  static void stop() {
+    for (final watch in _rooms.values) {
+      watch.subscription?.cancel();
+    }
+    _rooms.clear();
+    _onChange = null;
+  }
+}
+
 class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
@@ -122,11 +237,13 @@ class _ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    ChatAlerts.openRoom = room; // no popups for the chat on screen
     connect();
   }
 
   @override
   void dispose() {
+    if (ChatAlerts.openRoom == room) ChatAlerts.openRoom = null;
     subscription?.cancel();
     message.dispose();
     super.dispose();
