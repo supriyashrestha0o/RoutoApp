@@ -11,6 +11,7 @@ import 'package:routo/views/widgets/screen.dart';
 
 class VerificationPage extends StatefulWidget {
   const VerificationPage({super.key, required this.profile});
+
   final StudentProfile profile;
 
   @override
@@ -18,13 +19,18 @@ class VerificationPage extends StatefulWidget {
 }
 
 class _VerificationPageState extends State<VerificationPage> {
-  /// Photos needed per document (front + back).
   static const requiredImages = 2;
+  static final licensePattern = RegExp(r'^[0-9]{2}-[0-9]{2}-[0-9]{8}$');
 
   final form = GlobalKey<FormState>();
-  late final license = TextEditingController(text: widget.profile.licenseNumber);
-  late final citizenship =
-  TextEditingController(text: widget.profile.citizenshipNumber);
+
+  late final license = TextEditingController(
+    text: widget.profile.licenseNumber,
+  );
+  late final citizenship = TextEditingController(
+    text: widget.profile.citizenshipNumber,
+  );
+
   late List<String> licensePaths = List.of(widget.profile.licenseImagePaths);
   late List<String> citizenshipPaths =
   List.of(widget.profile.citizenshipImagePaths);
@@ -36,46 +42,92 @@ class _VerificationPageState extends State<VerificationPage> {
     super.dispose();
   }
 
-  /// Opens the gallery so the user can pick front AND back together.
   Future<List<String>> pickImages() async {
     try {
       final files = await ImagePicker().pickMultiImage(imageQuality: 85);
-      return files.take(requiredImages).map((file) => file.path).toList();
+
+      if (!mounted || files.isEmpty) return [];
+
+      if (files.length != requiredImages) {
+        notice(
+          context,
+          'You selected ${files.length}. Choose exactly 2 photos '
+              '(front and back).',
+        );
+        return [];
+      }
+
+      return files.map((file) => file.path).toList();
     } catch (_) {
-      if (mounted) notice(context, 'Could not open photos. Please try again.');
+      if (mounted) {
+        notice(context, 'Could not open photos. Please try again.');
+      }
       return [];
     }
   }
 
   Future<void> chooseLicense() async {
     final paths = await pickImages();
-    if (mounted && paths.isNotEmpty) setState(() => licensePaths = paths);
+    if (mounted && paths.isNotEmpty) {
+      setState(() => licensePaths = paths);
+    }
   }
 
   Future<void> chooseCitizenship() async {
     final paths = await pickImages();
-    if (mounted && paths.isNotEmpty) setState(() => citizenshipPaths = paths);
+    if (mounted && paths.isNotEmpty) {
+      setState(() => citizenshipPaths = paths);
+    }
   }
 
-  String? required(String? value, String message) =>
-      value == null || value.trim().isEmpty ? message : null;
+  String? validateLicenseNumber(String? value) {
+    final number = value?.trim() ?? '';
+
+    if (number.isEmpty) return 'Please enter your license number';
+
+    if (!licensePattern.hasMatch(number)) {
+      return 'Use the format XX-XX-XXXXXXXX.';
+    }
+
+    return null;
+  }
+  String? validateCitizenshipNumber(String? value) {
+    final number = value?.trim() ?? '';
+
+    if (number.isEmpty) return 'Please enter your citizenship number.';
+
+    if (!RegExp(r'^[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{5}$').hasMatch(number)) {
+      return 'Use the format XX-XX-XX-XXXXX.';
+    }
+
+    return null;
+  }
 
   void submit() {
-    final formOk = form.currentState!.validate();
-    if (licensePaths.length < requiredImages) {
-      notice(context, 'Select 2 photos of your driving license (front & back).');
+    if (!form.currentState!.validate()) return;
+
+    if (licensePaths.length != requiredImages) {
+      notice(
+        context,
+        'Select exactly 2 photos of your driving license (front and back).',
+      );
       return;
     }
-    if (citizenshipPaths.length < requiredImages) {
-      notice(context, 'Select 2 photos of your citizenship (front & back).');
+
+    if (citizenshipPaths.length != requiredImages) {
+      notice(
+        context,
+        'Select exactly 2 photos of your citizenship (front and back).',
+      );
       return;
     }
-    if (!formOk) return;
+
     widget.profile
       ..licenseNumber = license.text.trim()
       ..licenseImagePaths = licensePaths
       ..citizenshipNumber = citizenship.text.trim()
       ..citizenshipImagePaths = citizenshipPaths;
+
     showPage(context, SetupComplete(profile: widget.profile));
   }
 
@@ -91,33 +143,37 @@ class _VerificationPageState extends State<VerificationPage> {
     ),
   );
 
-  Widget numberField(TextEditingController controller, String message) =>
-      TextFormField(
-        controller: controller,
-        validator: (value) => required(value, message),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.black12),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: teal, width: 1.5),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Colors.red, width: 1.5),
-          ),
-        ),
-      );
+  Widget numberField(
+      TextEditingController controller,
+      FormFieldValidator<String> validator,
+      ) => TextFormField(
+    controller: controller,
+    validator: validator,
+    decoration: InputDecoration(
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black12),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: teal, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+    ),
+  );
 
   Widget uploadCard({
     required IconData icon,
@@ -125,7 +181,8 @@ class _VerificationPageState extends State<VerificationPage> {
     required List<String> paths,
     required VoidCallback onChoose,
   }) {
-    final done = paths.length >= requiredImages;
+    final done = paths.length == requiredImages;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -198,6 +255,7 @@ class _VerificationPageState extends State<VerificationPage> {
         'Verification Documents',
         'Upload your driving license and citizenship for verification',
       ),
+      const SizedBox(height: 16),
       Form(
         key: form,
         child: Column(
@@ -212,8 +270,8 @@ class _VerificationPageState extends State<VerificationPage> {
             ),
             const SizedBox(height: 16),
             label('License Number'),
-            numberField(license, 'Please enter your license number'),
-            const SizedBox(height: 20),
+            numberField(license, validateLicenseNumber),
+            const SizedBox(height: 24),
             label('Citizenship'),
             uploadCard(
               icon: Icons.assignment_ind_outlined,
@@ -223,11 +281,11 @@ class _VerificationPageState extends State<VerificationPage> {
             ),
             const SizedBox(height: 16),
             label('Citizenship Number'),
-            numberField(citizenship, 'Please enter your citizenship number'),
+            numberField(citizenship, validateCitizenshipNumber),
           ],
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 24),
       PrimaryAction('Submit for Verification', submit),
     ],
   );

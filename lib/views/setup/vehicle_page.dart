@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:routo/controllers/validators.dart';
 import 'package:routo/core/theme/app_colors.dart';
 import 'package:routo/core/utils/ui_helpers.dart';
 import 'package:routo/models/student_profile.dart';
@@ -12,6 +11,7 @@ import 'package:routo/views/widgets/screen.dart';
 
 class VehiclePage extends StatefulWidget {
   const VehiclePage({super.key, required this.profile});
+
   final StudentProfile profile;
 
   @override
@@ -22,8 +22,66 @@ class _VehiclePageState extends State<VehiclePage> {
   final form = GlobalKey<FormState>();
   final model = TextEditingController();
   final number = TextEditingController();
+
   String type = 'Bike';
   int seats = 1;
+  String? selectedModel;
+
+  static const otherModel = 'Others';
+
+  static const Map<String, List<String>> modelsByType = {
+    'Bike': [
+      'Bajaj Pulsar 150',
+      'Yamaha FZ-S',
+      'TVS Apache RTR 160',
+      'Royal Enfield Classic 350',
+    ],
+    'Scooter': [
+      'Honda Dio',
+      'Honda Activa',
+      'TVS Ntorq 125',
+      'Yamaha RayZR 125',
+    ],
+    'Car': [
+      'Maruti Suzuki Swift',
+      'Hyundai i10',
+      'Tata Nexon',
+      'BYD Atto 3',
+      'Kia Sonet',
+    ],
+  };
+
+  String? validateVehicleModel(String? value) {
+    final text = value?.trim() ?? '';
+
+    if (text.isEmpty) {
+      return 'Please enter your vehicle model.';
+    }
+
+    if (!RegExp(r'\p{L}', unicode: true).hasMatch(text)) {
+      return 'Enter a model name, for example Honda Dio or Pulsar 150.';
+    }
+
+    return null;
+  }
+
+  String? validateVehicleNumber(String? value) {
+    final text = value?.trim() ?? '';
+
+    if (text.isEmpty) {
+      return 'Please enter your vehicle number.';
+    }
+
+    if (!RegExp(r'^[0-9०-९]{1,4}$').hasMatch(text)) {
+      return 'Enter the last 1 to 4 digits, for example 7 or 0042.';
+    }
+
+    if (RegExp(r'^[0०]+$').hasMatch(text)) {
+      return 'Vehicle number must be greater than zero.';
+    }
+
+    return null;
+  }
 
   @override
   void dispose() {
@@ -80,10 +138,17 @@ class _VehiclePageState extends State<VehiclePage> {
                     ],
                   ),
                 ),
-                onSelected: (_) => setState(() {
-                  type = entry.key;
-                  if (type != 'Car') seats = 1;
-                }),
+                onSelected: (_) {
+                  if (type == entry.key) return;
+
+                  setState(() {
+                    type = entry.key;
+                    selectedModel = null;
+                    model.clear();
+
+                    if (type != 'Car') seats = 1;
+                  });
+                },
               ),
             ),
         ],
@@ -93,29 +158,78 @@ class _VehiclePageState extends State<VehiclePage> {
         key: form,
         child: Column(
           children: [
-            Field('Vehicle Model', model, validator: requiredField),
-            Field('Vehicle Number', number, validator: requiredField),
+            DropdownButtonFormField<String>(
+              key: ValueKey(type),
+              initialValue: selectedModel,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Vehicle Model',
+              ),
+              hint: const Text('Select your vehicle model'),
+              items: [
+                for (final name in modelsByType[type]!)
+                  DropdownMenuItem<String>(
+                    value: name,
+                    child: Text(name),
+                  ),
+                const DropdownMenuItem<String>(
+                  value: otherModel,
+                  child: Text(otherModel),
+                ),
+              ],
+              validator: (value) =>
+              value == null ? 'Please select your vehicle model.' : null,
+              onChanged: (value) {
+                setState(() {
+                  selectedModel = value;
+                  model.text = value == otherModel ? '' : (value ?? '');
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            if (selectedModel == otherModel)
+              Field(
+                'Enter your vehicle model',
+                model,
+                keyboard: TextInputType.text,
+                validator: validateVehicleModel,
+              ),
+            Field(
+              'Vehicle Number (last 1–4 digits)',
+              number,
+              keyboard: TextInputType.number,
+              validator: validateVehicleNumber,
+            ),
             if (type == 'Car')
               DropdownButtonFormField<int>(
                 initialValue: seats,
-                decoration: const InputDecoration(labelText: 'Passenger seats'),
+                decoration: const InputDecoration(
+                  labelText: 'Passenger seats',
+                ),
                 items: [1, 2, 3]
                     .map(
-                      (value) =>
-                      DropdownMenuItem(value: value, child: Text('$value')),
+                      (value) => DropdownMenuItem<int>(
+                    value: value,
+                    child: Text('$value'),
+                  ),
                 )
                     .toList(),
-                onChanged: (value) => setState(() => seats = value!),
+                onChanged: (value) {
+                  if (value != null) setState(() => seats = value);
+                },
               ),
           ],
         ),
       ),
       PrimaryAction('Continue', () {
         if (!form.currentState!.validate()) return;
+
         widget.profile
           ..vehicle = type
           ..model = model.text.trim()
+          ..vehicleNumber = number.text.trim()
           ..capacity = seats;
+
         showPage(context, VerificationPage(profile: widget.profile));
       }),
     ],
