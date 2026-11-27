@@ -217,6 +217,15 @@ class ChatPage extends StatefulWidget {
   /// Name shown on this user's messages. Optional: when it is not passed the
   /// chat uses the trip host for your own trips and "Student xxxx" otherwise.
   final String? senderName;
+  static String titleFor(PreviewTrip trip) {
+    if (!trip.freeRequest && trip.vehicle == 'Car') {
+      return 'Journey Chat · ${trip.journey.destination}';
+    }
+
+    if (!trip.mine) return trip.host;
+
+    return trip.members.isEmpty ? 'Ride Chat' : trip.members.first;
+  }
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -332,7 +341,12 @@ class _ChatPageState extends State<ChatPage> {
           child: Row(
             spacing: 8,
             children: [
-              for (final name in {widget.trip.host, ...widget.trip.members})
+              for (final name in <String>{
+                if (widget.senderName?.trim().isNotEmpty == true)
+                  widget.senderName!.trim(),
+                widget.trip.host.trim(),
+                ...widget.trip.members.map((member) => member.trim()),
+              })
                 Chip(
                   backgroundColor: mint,
                   avatar: const Icon(
@@ -498,7 +512,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: mint,
     appBar: AppBar(
-      title: Text(widget.trip.capacity > 1 ? 'Journey Chat' : widget.trip.host),
+      title: Text(ChatPage.titleFor(widget.trip)),
     ),
     body: SafeArea(
       top: false,

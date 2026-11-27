@@ -374,24 +374,20 @@ class _DashboardState extends State<Dashboard> {
         .where(canShowChat)
         .map(
           (trip) => ListTile(
-        leading: trip.vehicle == 'Car'
+            leading: !trip.freeRequest && trip.vehicle == 'Car'
             ? const CircleAvatar(
           backgroundColor: mint,
           child: Icon(Icons.groups_outlined, color: forest),
         )
             : const ProfileAvatar(),
-        title: Text(
-          trip.vehicle == 'Car'
-              ? 'Journey Chat · ${trip.journey.destination}'
-              : trip.host,
-        ),
+            title: Text(ChatPage.titleFor(trip)),
         subtitle: Text(
           trip.messages.isEmpty
               ? 'Start a conversation'
               : trip.messages.last,
         ),
         onTap: () async {
-          await showPage(context, ChatPage(trip: trip));
+          await showPage(context, ChatPage(trip: trip, senderName: profile.name));
           if (mounted) setState(() {});
         },
       ),
