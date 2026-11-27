@@ -374,20 +374,24 @@ class _DashboardState extends State<Dashboard> {
         .where(canShowChat)
         .map(
           (trip) => ListTile(
-        leading: ChatPage.participantNames(trip, profile.name).length > 2
+        leading: trip.vehicle == 'Car'
             ? const CircleAvatar(
           backgroundColor: mint,
           child: Icon(Icons.groups_outlined, color: forest),
         )
             : const ProfileAvatar(),
-        title: Text(ChatPage.titleFor(trip, profile.name)),
+        title: Text(
+          trip.vehicle == 'Car'
+              ? 'Journey Chat · ${trip.journey.destination}'
+              : trip.host,
+        ),
         subtitle: Text(
           trip.messages.isEmpty
               ? 'Start a conversation'
               : trip.messages.last,
         ),
         onTap: () async {
-          await showPage(context, ChatPage(trip: trip, senderName: profile.name));
+          await showPage(context, ChatPage(trip: trip));
           if (mounted) setState(() {});
         },
       ),
@@ -403,7 +407,7 @@ class _DashboardState extends State<Dashboard> {
       return false;
     }
 
-    final names = <String>[ChatPage.titleFor(trip, profile.name), trip.host];
+    final names = <String>[trip.host];
     if (trip.vehicle == 'Car') {
       names.addAll(['Journey Chat', trip.journey.destination, ...trip.members]);
     }

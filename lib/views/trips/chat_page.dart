@@ -218,27 +218,6 @@ class ChatPage extends StatefulWidget {
   /// chat uses the trip host for your own trips and "Student xxxx" otherwise.
   final String? senderName;
 
-  static List<String> participantNames(PreviewTrip trip, String viewer) {
-    final names = <String, String>{};
-    for (final value in [trip.host, ...trip.members, viewer]) {
-      final name = value.trim();
-      if (name.isNotEmpty) names.putIfAbsent(name.toLowerCase(), () => name);
-    }
-    return names.values.toList();
-  }
-
-  static String titleFor(PreviewTrip trip, String viewer) {
-    final me = viewer.trim().toLowerCase();
-    if (me.isEmpty) return 'Ride Chat';
-
-    final others = participantNames(trip, viewer)
-        .where((name) => name.toLowerCase() != me)
-        .toList();
-    if (others.isEmpty) return 'Ride Chat';
-    if (others.length == 1) return others.first;
-    return 'Journey Chat';
-  }
-
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
@@ -353,7 +332,7 @@ class _ChatPageState extends State<ChatPage> {
           child: Row(
             spacing: 8,
             children: [
-              for (final name in ChatPage.participantNames(widget.trip, widget.senderName ?? ''))
+              for (final name in {widget.trip.host, ...widget.trip.members})
                 Chip(
                   backgroundColor: mint,
                   avatar: const Icon(
@@ -519,7 +498,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: mint,
     appBar: AppBar(
-      title: Text(ChatPage.titleFor(widget.trip, widget.senderName ?? '')),
+      title: Text(widget.trip.capacity > 1 ? 'Journey Chat' : widget.trip.host),
     ),
     body: SafeArea(
       top: false,

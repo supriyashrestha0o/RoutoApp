@@ -721,11 +721,7 @@ class _TripDetailsState extends State<TripDetails> {
           'Open Chat',
               () => showPage(
             context,
-            ChatPage(
-              trip: trip,
-              senderName: widget.profile.name,
-              onUpdate: widget.onUpdate,
-            ),
+            ChatPage(trip: trip, onUpdate: widget.onUpdate),
           ),
         ),
         if (widget.profile.driver)
