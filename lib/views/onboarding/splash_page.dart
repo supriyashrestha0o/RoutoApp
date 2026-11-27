@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:routo/views/onboarding/onboarding_page.dart';
+
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -12,48 +14,40 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
+
     Future<void>.delayed(const Duration(milliseconds: 2100), () {
-      if (mounted)
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (_) => const OnboardingPage()),
-        );
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => const OnboardingPage(),
+        ),
+      );
     });
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xff353c34),
-    body: SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            children: [
-              Image.asset(
-                'assets/splash-brand.webp',
-                height: 240,
-                semanticLabel: 'Routo student ride sharing',
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Your Route. Your Match.\nYour Journey.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 23,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 28),
-              Image.asset(
-                'assets/splash-route.webp',
-                height: 275,
-                excludeFromSemantics: true,
-              ),
-            ],
+  Widget build(BuildContext context) {
+    const backgroundColor = Color(0xFF383E36);
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: backgroundColor,
+      ),
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(
+          child: FractionallySizedBox(
+            widthFactor: 0.56,
+            child: Image.asset(
+              'assets/splash-brand.webp',
+              fit: BoxFit.contain,
+              semanticLabel: 'Routo student ride sharing',
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
