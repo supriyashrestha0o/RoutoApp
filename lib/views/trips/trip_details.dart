@@ -97,12 +97,51 @@ class _TripDetailsState extends State<TripDetails> {
     );
 
     if (!mounted || amount == null || !canAct) return;
-    trip.contribution = amount;
+
+    final requestedTrip = trip;
+    final passenger = widget.profile.name.trim();
+    final onUpdate = widget.onUpdate;
+
+    if (passenger.isEmpty) {
+      notice(context, 'Add your name to your profile first.');
+      return;
+    }
+
+    requestedTrip.contribution = amount;
     changeStatus(
       TripStatus.pending,
-      'Preview request to join ${trip.host} sent.',
+      'Preview request to join ${requestedTrip.host} sent.',
     );
-    await RideNotifications.showRequestSent();
+
+    Future<void> simulateDriverReply() async {
+      await Future<void>.delayed(const Duration(seconds: 5));
+
+      if (requestedTrip.status != TripStatus.pending) return;
+
+      final accepted =
+          requestedTrip.journey.departure.isAfter(DateTime.now()) &&
+              requestedTrip.join(passenger);
+
+      requestedTrip.status =
+      accepted ? TripStatus.accepted : TripStatus.declined;
+
+      if (mounted) setState(() {});
+
+      final message = accepted
+          ? '${requestedTrip.host} accepted your request. Your journey chat is ready.'
+          : '${requestedTrip.host} could not accept your request.';
+
+      onUpdate(message);
+      await RideNotifications.showUpdate(
+        accepted ? 'Request accepted' : 'Request declined',
+        message,
+      );
+    }
+
+    await Future.wait<void>([
+      simulateDriverReply(),
+      RideNotifications.showRequestSent(),
+    ]);
   }
 
   Future<void> previewDriverDecision() async {
